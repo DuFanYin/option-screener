@@ -13,3 +13,5 @@
 data/
 .env
 .cursorignore
+
+.DS_Store
