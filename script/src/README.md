@@ -12,68 +12,60 @@ These filters apply when selecting individual options before constructing strate
 
 - **`min_volume`** (`Optional[int]`): Minimum volume required for an option
 - **`min_oi`** (`Optional[int]`): Minimum open interest required for an option
-- **`max_price`** (`Optional[float]`): Maximum option price (mid price)
-- **`strikes_range`** (`Optional[Tuple[float, float]]`): Strike price range as a tuple `(low, high)`
 - **`expiry`** (`Optional[str]`): Filter options by specific expiry date (e.g., "2025-01-17")
 - **`days_to_expiry_range`** (`Optional[Tuple[int, int]]`): Days to expiry range as a tuple `(min_days, max_days)` inclusive. Use `(2, 10)` for 2-10 days, or `(2, 2)` for exactly 2 days
+- **`volume_ratio_range`** (`Optional[Tuple[float, float]]`): Volume relative to open interest range as a tuple `(min_ratio, max_ratio)` inclusive (removes fake volume spikes)
+- **`max_bid_ask_spread`** (`Optional[float]`): Maximum allowed bid/ask spread to require tight spreads and avoid illiquid/impossible-to-fill options
 
 ### Strategy-Level Filters
 
 These filters apply after strategies are constructed:
 
+- **`direction`** (`Optional[Literal["LONG", "SHORT"]]`): Strategy direction - "LONG" (buy/long positions) or "SHORT" (sell/short positions). Defaults to "LONG" for single calls if not specified
+- **`min_debit`** (`Optional[float]`): Minimum debit/cost allowed for a strategy
 - **`max_debit`** (`Optional[float]`): Maximum debit/cost allowed for a strategy
 - **`min_credit`** (`Optional[float]`): Minimum credit required (for credit strategies like Iron Condors)
-- **`max_loss`** (`Optional[float]`): Maximum potential loss allowed
-- **`min_rr`** (`Optional[float]`): Minimum risk-reward ratio (max_gain / max_loss)
-
-### Greek & IV Limits
-
-Risk management filters based on net Greeks and implied volatility:
-
-- **`max_net_delta`** (`Optional[float]`): Maximum absolute net delta for the strategy
-- **`max_theta`** (`Optional[float]`): Maximum absolute net theta for the strategy
-- **`max_vega`** (`Optional[float]`): Maximum absolute net vega for the strategy
-- **`max_iv`** (`Optional[float]`): Maximum average implied volatility across all legs
-- **`min_iv`** (`Optional[float]`): Require minimum IV (good for selling premium)
-- **`min_delta`** (`Optional[float]`): Filter weak/too-deep OTM legs (minimum absolute delta)
-- **`max_gamma`** (`Optional[float]`): Maximum gamma for low-gamma trades (maximum absolute gamma)
-
-### Liquidity Filters
-
-Filters to ensure option liquidity and quality:
-
-- **`min_volume_ratio`** (`Optional[float]`): Volume relative to open interest (removes fake volume spikes)
-- **`min_bid_ask_spread`** (`Optional[float]`): Maximum allowed bid/ask spread to require tight spreads and avoid illiquid/impossible-to-fill options
+- **`max_credit`** (`Optional[float]`): Maximum credit allowed (for credit strategies like Iron Condors)
+- **`potential_gain_range`** (`Optional[Tuple[float, float]]`): Maximum potential gain range as a tuple `(min_gain, max_gain)` inclusive
+- **`potential_loss_range`** (`Optional[Tuple[float, float]]`): Maximum potential loss range as a tuple `(min_loss, max_loss)` inclusive
+- **`rr_range`** (`Optional[Tuple[float, float]]`): Risk-reward ratio range as a tuple `(min_rr, max_rr)` inclusive (max_gain / max_loss)
+- **`net_delta_range`** (`Optional[Tuple[float, float]]`): Net delta range as a tuple `(min_delta, max_delta)` inclusive
+- **`net_theta_range`** (`Optional[Tuple[float, float]]`): Net theta range as a tuple `(min_theta, max_theta)` inclusive
+- **`net_vega_range`** (`Optional[Tuple[float, float]]`): Net vega range as a tuple `(min_vega, max_vega)` inclusive
+- **`iv_range`** (`Optional[Tuple[float, float]]`): Average implied volatility range as a tuple `(min_iv, max_iv)` inclusive across all legs
 
 ### Example Usage
 
 ```python
-from script.src.factory import StrategyFactory, StrategyConfig
+from script.src.factory import StrategyFactory
+from script.src.config import StrategyConfig
 from script.src.loader import load_option_snapshot
 
 options, spot = load_option_snapshot("data/pltr.json")
 factory = StrategyFactory(options, spot)
 
 cfg = StrategyConfig(
+    # Option-level filters
     min_volume=10,
     min_oi=50,
-    max_price=5,
-    strikes_range=(20, 30),
     expiry="2025-01-17",
     days_to_expiry_range=(2, 10),  # 2 to 10 days inclusive
-    min_iv=0.3,  # Require minimum IV for selling premium
-    min_delta=0.05,  # Filter weak OTM legs
-    max_gamma=0.1,  # Low-gamma trades
-    min_volume_ratio=0.1,  # Volume to OI ratio
-    min_bid_ask_spread=0.10,  # Maximum allowed spread (tight spreads)
-    max_debit=3,
-    min_credit=1,
-    max_loss=5,
-    min_rr=1.5,
-    max_net_delta=100,
-    max_theta=50,
-    max_vega=200,
-    max_iv=0.5,
+    volume_ratio_range=(0.1, 1.0),  # Volume to OI ratio range
+    max_bid_ask_spread=0.10,  # Maximum allowed spread (tight spreads)
+    
+    # Strategy-level filters
+    direction="LONG",  # or "SHORT" for short positions
+    min_debit=1.0,
+    max_debit=3.0,
+    min_credit=1.0,
+    max_credit=5.0,
+    potential_gain_range=(50, 500),
+    potential_loss_range=(0, 100),
+    rr_range=(1.5, 10.0),
+    net_delta_range=(-50, 50),
+    net_theta_range=(-100, 100),
+    net_vega_range=(-200, 200),
+    iv_range=(0.1, 0.5),
 )
 
 strategies = factory.vertical_debit_calls(cfg)
@@ -135,118 +127,20 @@ The following table shows which `StrategyConfig` fields apply to which strategie
 | **Option-Level Filters** |
 | `min_volume` | ✅ | ✅ | ✅ |
 | `min_oi` | ✅ | ✅ | ✅ |
-| `max_price` | ✅ | ✅ | ✅ |
-| `strikes_range` | ✅ | ✅ | ✅ |
 | `expiry` | ✅ | ✅ | ✅ |
 | `days_to_expiry_range` | ✅ | ✅ | ✅ |
-| `min_iv` | ✅ | ✅ | ✅ |
-| `min_delta` | ✅ | ✅ | ✅ |
-| `max_gamma` | ✅ | ✅ | ✅ |
+| `volume_ratio_range` | ✅ | ✅ | ✅ |
+| `max_bid_ask_spread` | ✅ | ✅ | ✅ |
 | **Strategy-Level Filters** |
+| `direction` | ✅ | ✅ | ✅ |
+| `min_debit` | ✅ | ✅ | ✅ |
 | `max_debit` | ✅ | ✅ | ✅ |
 | `min_credit` | | | ✅ |
-| `max_loss` | ✅ | ✅ | ✅ |
-| `min_rr` | ✅ | ✅ | ✅ |
-| **Greek & IV Limits** |
-| `max_net_delta` | ✅ | ✅ | ✅ |
-| `max_theta` | ✅ | ✅ | ✅ |
-| `max_vega` | ✅ | ✅ | ✅ |
-| `max_iv` | ✅ | ✅ | ✅ |
-| **Liquidity Filters** |
-| `min_volume_ratio` | ✅ | ✅ | ✅ |
-| `min_bid_ask_spread` | ✅ | ✅ | ✅ |
-
-
-
-
-
-{
-  "symbols": [
-    "PLTR"
-  ],
-  "timestamp": 1762049680.174532,
-  "underlying": {
-    "last": 200.47,
-    "bid": 201.5,
-    "ask": 201.62,
-    "volume": 52697644,
-    "updated_at": 1761940800462
-  },
-  "chains": {
-    "PLTR": {
-      "2025-11-07": [
-        {
-          "symbol": "PLTR251107P00095000",
-          "description": "PLTR Nov 7 2025 $95.00 Put",
-          "exch": "Z",
-          "type": "option",
-          "last": 0.02,
-          "change": -0.02,
-          "volume": 5384,
-          "open": 0.04,
-          "high": 0.06,
-          "low": 0.01,
-          "close": 0.02,
-          "bid": 0.01,
-          "ask": 0.03,
-          "underlying": "PLTR",
-          "strike": 95.0,
-          "greeks": {
-            "delta": -6.01864144947e-05,
-            "gamma": 7.40630883938048e-10,
-            "theta": -1.6306298433649376e-08,
-            "vega": 2.000688743685533e-05,
-            "rho": 0.018323446898149878,
-            "phi": -0.03885635243292845,
-            "bid_iv": 1.774586,
-            "mid_iv": 1.864725,
-            "ask_iv": 1.954864,
-            "smv_vol": 1.119,
-            "updated_at": "2025-10-31 20:00:02"
-          },
-          "change_percentage": -50.0,
-          "average_volume": 0,
-          "last_volume": 8,
-          "trade_date": 1761938340985,
-          "prevclose": 0.04,
-          "week_52_high": 0.0,
-          "week_52_low": 0.0,
-          "bidsize": 108,
-          "bidexch": "N",
-          "bid_date": 1761939057000,
-          "asksize": 10,
-          "askexch": "I",
-          "ask_date": 1761940498000,
-          "open_interest": 3452,
-          "contract_size": 100,
-          "expiration_date": "2025-11-07",
-          "expiration_type": "weeklys",
-          "option_type": "put",
-          "root_symbol": "PLTR"
-        },
-        {
-          "symbol": "PLTR251107C00095000",
-          "description": "PLTR Nov 7 2025 $95.00 Call",
-          "exch": "Z",
-          "type": "option",
-          "last": 106.13,
-          "change": 4.29,
-          "volume": 37,
-          "open": 106.53,
-          "high": 108.44,
-          "low": 103.9,
-          "close": 106.13,
-          "bid": 104.95,
-          "ask": 106.55,
-          "underlying": "PLTR",
-          "strike": 95.0,
-          "greeks": {
-            "delta": 0.9999398135855053,
-            "gamma": 7.40630883938048e-10,
-            "theta": -1.6306298433649376e-08,
-            "vega": 2.000688743685533e-05,
-            "rho": 0.018323446898149878,
-            "phi": -0.03885635243292845,
-            "bid_iv": 0.0,
-            "mid_iv": 2.467764,
-
+| `max_credit` | | | ✅ |
+| `potential_gain_range` | ✅ | ✅ | ✅ |
+| `potential_loss_range` | ✅ | ✅ | ✅ |
+| `rr_range` | ✅ | ✅ | ✅ |
+| `net_delta_range` | ✅ | ✅ | ✅ |
+| `net_theta_range` | ✅ | ✅ | ✅ |
+| `net_vega_range` | ✅ | ✅ | ✅ |
+| `iv_range` | ✅ | ✅ | ✅ |

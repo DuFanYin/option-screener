@@ -1,32 +1,38 @@
 from dataclasses import dataclass
 from typing import Optional, Tuple
+from enum import Enum
+
+
+class Direction(Enum):
+    LONG = "LONG"
+    SHORT = "SHORT"
 
 
 @dataclass
 class StrategyConfig:
-    # ----- Option-level filters -----
+    # ==================== OPTION-LEVEL FILTERS ====================
+    # These filters apply to individual options before strategy construction
     min_volume: Optional[int] = None
     min_oi: Optional[int] = None
-    max_price: Optional[float] = None
-    strikes_range: Optional[Tuple[float, float]] = None
+
     expiry: Optional[str] = None
     days_to_expiry_range: Optional[Tuple[int, int]] = None  # (min_days, max_days) inclusive
-
-    # ----- Strategy-level -----
-    max_debit: Optional[float] = None
-    min_credit: Optional[float] = None
-    max_loss: Optional[float] = None
-    min_rr: Optional[float] = None
-
-    # ----- Greek & IV limits -----
-    max_net_delta: Optional[float] = None
-    max_theta: Optional[float] = None
-    max_vega: Optional[float] = None
-    max_iv: Optional[float] = None
-    min_iv: Optional[float] = None  # Require minimum IV (good for selling premium)
-    min_delta: Optional[float] = None  # Filter weak/too-deep OTM legs
-    max_gamma: Optional[float] = None  # For low-gamma trades
     
-    # ----- Liquidity filters -----
-    min_volume_ratio: Optional[float] = None  # Volume relative to open interest (removes fake volume spikes)
-    min_bid_ask_spread: Optional[float] = None  # Require bid/ask spread to be tight (avoid illiquid options)
+    volume_ratio_range: Optional[Tuple[float, float]] = None  # Volume relative to open interest (removes fake volume spikes)
+    max_bid_ask_spread: Optional[float] = None  # Require bid/ask spread to be tight (avoid illiquid options)
+
+    # ==================== STRATEGY-LEVEL FILTERS ====================
+    # These filters apply after strategies are constructed
+    direction: Optional[Direction] = None  # Strategy direction: LONG or SHORT
+    
+    debit_range: Optional[Tuple[float, float]] = None
+    credit_range: Optional[Tuple[float, float]] = None
+
+    potential_gain_range: Optional[Tuple[float, float]] = None
+    potential_loss_range: Optional[Tuple[float, float]] = None
+
+    rr_range: Optional[Tuple[float, float]] = None
+    net_delta_range: Optional[Tuple[float, float]] = None
+    net_theta_range: Optional[Tuple[float, float]] = None
+    net_vega_range: Optional[Tuple[float, float]] = None
+    iv_range: Optional[Tuple[float, float]] = None

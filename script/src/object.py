@@ -63,6 +63,7 @@ from .object import Option
 # ===================== BASE STRATEGY =====================
 @dataclass
 class Strategy(ABC):
+    direction: str  # "LONG" or "SHORT"
 
     @abstractmethod
     def legs(self) -> List[Option]: ...
@@ -147,9 +148,10 @@ class Strategy(ABC):
 
 # ===================== SINGLE LEG =====================
 class SingleLeg(Strategy):
-    def __init__(self, opt: Option, action="BUY"):
+    def __init__(self, opt: Option, action: str, direction: str):
         self.opt = opt
         self.action = action
+        self.direction = direction
 
     def legs(self):
         return [self.opt]
@@ -178,49 +180,14 @@ class SingleLeg(Strategy):
             f"Δ={self.net_delta():.3f} Θ={self.net_theta():.3f} vega={self.net_vega():.3f}"
         )
 
-
-# ===================== VERTICAL SPREAD =====================
-class VerticalSpread(Strategy):
-    def __init__(self, buy: Option, sell: Option):
-        self.buy = buy
-        self.sell = sell
-
-    def legs(self):
-        return [self.buy, self.sell]
-
-    def _leg_sign(self, option):
-        return 1 if option is self.buy else -1   # buy long, sell short
-
-    def cost(self):
-        return self.buy.price() - self.sell.price()
-
-    def width(self):
-        return (self.sell.strike - self.buy.strike) * 100
-
-    def max_gain(self):
-        return self.width() - self.cost()
-
-    def max_loss(self):
-        return self.cost()
-
-    def pretty(self):
-        return f"Vertical CALL {self.buy.strike}->{self.sell.strike} exp {self.buy.expiry}"
-
-    def __repr__(self):
-        return (
-            f"[Vertical] {self.buy.strike}->{self.sell.strike} exp={self.buy.expiry} "
-            f"debit={self.cost():.2f} max_gain={self.max_gain():.2f} rr={self.rr():.2f} "
-            f"Δ={self.net_delta():.3f} Θ={self.net_theta():.3f}"
-        )
-
-
 # ===================== IRON CONDOR =====================
 class IronCondor(Strategy):
-    def __init__(self, sc, bc, sp, bp):
+    def __init__(self, sc, bc, sp, bp, direction: str):
         self.sc = sc
         self.bc = bc
         self.sp = sp
         self.bp = bp
+        self.direction = direction
 
     def legs(self):
         return [self.sc, self.bc, self.sp, self.bp]

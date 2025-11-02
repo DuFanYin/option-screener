@@ -1,5 +1,10 @@
 # factory.py
-from .object import SingleLeg, VerticalSpread, IronCondor, Option
+from .object import SingleLeg, IronCondor, Option
+from dataclasses import dataclass
+from typing import Optional, Tuple, List
+
+from .config import StrategyConfig
+
 
 # ranking.py
 class StrategyRanking:
@@ -14,13 +19,6 @@ class StrategyRanking:
     @staticmethod
     def by_cost(strats):
         return sorted(strats, key=lambda strategy: strategy.cost())
-# factory.py
-
-from dataclasses import dataclass
-from typing import Optional, Tuple, List
-
-from .object import SingleLeg, VerticalSpread, IronCondor, Option
-from .config import StrategyConfig
 
 # ============================================================
 # ✅ FILTER WRAPPER FOR OPTIONS
@@ -35,6 +33,9 @@ class OptionQuery:
         return self
 
     def apply_config(self, cfg: StrategyConfig):
+        # ==================== OPTION-LEVEL FILTERS ====================
+        # These filters apply to individual options before strategy construction
+        
         # volume filter
         if cfg.min_volume is not None:
             self.filter(lambda o: (o.volume or 0) >= cfg.min_volume)
@@ -43,44 +44,23 @@ class OptionQuery:
         if cfg.min_oi is not None:
             self.filter(lambda o: (o.oi or 0) >= cfg.min_oi)
 
-        # max price
-        if cfg.max_price is not None:
-            self.filter(lambda o: o.price() is not None and o.price() <= cfg.max_price)
-
         # expiry filter
         if cfg.expiry is not None:
             self.filter(lambda o: o.expiry == cfg.expiry)
-
-        # strike filter
-        if cfg.strikes_range is not None:
-            lo, hi = cfg.strikes_range
-            self.filter(lambda o: lo <= o.strike <= hi)
 
         # days to expiry range filter
         if cfg.days_to_expiry_range is not None:
             min_days, max_days = cfg.days_to_expiry_range
             self.filter(lambda o: o.days_to_expiry is not None and min_days <= o.days_to_expiry <= max_days)
 
-        # min IV filter (good for selling premium)
-        if cfg.min_iv is not None:
-            self.filter(lambda o: o.iv is not None and o.iv >= cfg.min_iv)
+        # volume ratio range filter (removes fake volume spikes)
+        if cfg.volume_ratio_range is not None:
+            min_ratio, max_ratio = cfg.volume_ratio_range
+            self.filter(lambda o: o.volume_ratio() is not None and min_ratio <= o.volume_ratio() <= max_ratio)
 
-        # min delta filter (filter weak/too-deep OTM legs)
-        if cfg.min_delta is not None:
-            self.filter(lambda o: o.delta is not None and abs(o.delta) >= cfg.min_delta)
-
-        # max gamma filter (for low-gamma trades)
-        if cfg.max_gamma is not None:
-            self.filter(lambda o: o.gamma is not None and abs(o.gamma) <= cfg.max_gamma)
-
-        # min volume ratio filter (removes fake volume spikes)
-        if cfg.min_volume_ratio is not None:
-            self.filter(lambda o: o.volume_ratio() is not None and o.volume_ratio() >= cfg.min_volume_ratio)
-
-        # min bid/ask spread filter (require tight spreads, avoid illiquid options)
-        # Note: min_bid_ask_spread actually means maximum allowed spread (we want spreads <= this value for tight spreads)
-        if cfg.min_bid_ask_spread is not None:
-            self.filter(lambda o: o.bid_ask_spread() is not None and o.bid_ask_spread() <= cfg.min_bid_ask_spread)
+        # max bid/ask spread filter (require tight spreads, avoid illiquid options)
+        if cfg.max_bid_ask_spread is not None:
+            self.filter(lambda o: o.bid_ask_spread() is not None and o.bid_ask_spread() <= cfg.max_bid_ask_spread)
 
         return self
 
@@ -147,36 +127,68 @@ class StrategyFactory:
 
 
     # ---------- INTERNAL STRATEGY FILTER ----------
+    # ==================== STRATEGY-LEVEL FILTERS ====================
+    # These filters apply after strategies are constructed
     def _filter_strategies(self, strategies, cfg: StrategyConfig):
         out = []
         for s in strategies:
 
             # --- debit / credit ---
-            if cfg.max_debit is not None and s.cost() > cfg.max_debit:
-                continue
-            if cfg.min_credit is not None and hasattr(s, "credit") and s.credit() < cfg.min_credit:
-                continue
+            if cfg.debit_range is not None:
+                min_debit, max_debit = cfg.debit_range
+                cost = s.cost()
+                if cost is None or not (min_debit <= cost <= max_debit):
+                    continue
+            if hasattr(s, "credit"):
+                if cfg.credit_range is not None:
+                    min_credit, max_credit = cfg.credit_range
+                    credit = s.credit()
+                    if credit is None or not (min_credit <= credit <= max_credit):
+                        continue
 
-            # --- RR ---
-            if cfg.min_rr is not None and s.rr() < cfg.min_rr:
-                continue
+            # --- potential gain range ---
+            if cfg.potential_gain_range is not None:
+                min_gain, max_gain = cfg.potential_gain_range
+                gain = s.max_gain()
+                if gain is None or not (min_gain <= gain <= max_gain):
+                    continue
 
-            # --- risk cap ---
-            if cfg.max_loss is not None and s.max_loss() > cfg.max_loss:
-                continue
+            # --- potential loss range ---
+            if cfg.potential_loss_range is not None:
+                min_loss, max_loss = cfg.potential_loss_range
+                loss = s.max_loss()
+                if loss is None or not (min_loss <= loss <= max_loss):
+                    continue
 
-            # --- net Greeks ---
-            if cfg.max_net_delta is not None and abs(s.net_delta()) > cfg.max_net_delta:
-                continue
-            if cfg.max_theta is not None and abs(s.net_theta()) > cfg.max_theta:
-                continue
-            if cfg.max_vega is not None and abs(s.net_vega()) > cfg.max_vega:
-                continue
+            # --- RR range ---
+            if cfg.rr_range is not None:
+                min_rr, max_rr = cfg.rr_range
+                rr = s.rr()
+                if rr is None or not (min_rr <= rr <= max_rr):
+                    continue
 
-            # --- avg IV ---
-            if cfg.max_iv is not None:
+            # --- net Greeks ranges ---
+            if cfg.net_delta_range is not None:
+                min_delta, max_delta = cfg.net_delta_range
+                delta = s.net_delta()
+                if delta is None or not (min_delta <= delta <= max_delta):
+                    continue
+            if cfg.net_theta_range is not None:
+                min_theta, max_theta = cfg.net_theta_range
+                theta = s.net_theta()
+                if theta is None or not (min_theta <= theta <= max_theta):
+                    continue
+            if cfg.net_vega_range is not None:
+                min_vega, max_vega = cfg.net_vega_range
+                vega = s.net_vega()
+                if vega is None or not (min_vega <= vega <= max_vega):
+                    continue
+
+            # --- avg IV range ---
+            if cfg.iv_range is not None:
+                min_iv, max_iv = cfg.iv_range
                 iv = s.avg_iv()
-                if iv is None or iv > cfg.max_iv:
+                if iv is None or not (min_iv <= iv <= max_iv):
                     continue
 
             out.append(s)
@@ -191,33 +203,12 @@ class StrategyFactory:
         q = OptionQuery(self.options, self.spot).apply_config(cfg)
         opts = q.filter(lambda o: o.is_call() and o.is_otm(self.spot)).result()
 
-        strategies = [SingleLeg(o, "BUY") for o in opts]
-        filtered = self._filter_strategies(strategies, cfg)
-        return StrategyList(filtered, self)
-
-
-    # ============================================================
-    # ✅ 2: VERTICAL CALL DEBIT SPREAD
-    # ============================================================
-    def vertical_debit_calls(self, cfg: StrategyConfig):
-        q = OptionQuery(self.options, self.spot).apply_config(cfg)
-        calls = q.filter(lambda o: o.is_call() and o.is_otm(self.spot)).result()
-        calls = sorted(calls, key=lambda o: (o.expiry, o.strike))
-
-        strategies = []
-        for buy in calls:
-            for sell in calls:
-                if sell.expiry != buy.expiry:
-                    continue
-                if sell.strike <= buy.strike:
-                    continue
-
-                debit = buy.price() - sell.price()
-                if cfg.max_debit is not None and debit > cfg.max_debit:
-                    continue
-
-                strategies.append(VerticalSpread(buy, sell))
-
+        # Determine direction: use config direction or default to LONG
+        from .config import Direction
+        direction = cfg.direction if cfg.direction is not None else Direction.LONG
+        direction_str = direction.value if isinstance(direction, Direction) else direction
+        action = "SELL" if direction_str == "SHORT" else "BUY"
+        strategies = [SingleLeg(o, action, direction=direction_str) for o in opts]
         filtered = self._filter_strategies(strategies, cfg)
         return StrategyList(filtered, self)
 
@@ -227,6 +218,11 @@ class StrategyFactory:
     # ============================================================
     def iron_condors(self, cfg: StrategyConfig):
         opts = OptionQuery(self.options, self.spot).apply_config(cfg).result()
+
+        # Determine direction: use config direction or default to SHORT for iron condors
+        from .config import Direction
+        direction = cfg.direction if cfg.direction is not None else Direction.SHORT
+        direction_str = direction.value if isinstance(direction, Direction) else direction
 
         # group by expiry
         exp_map = {}
@@ -249,7 +245,7 @@ class StrategyFactory:
                         for bp in puts:
                             if bp.strike >= sp.strike:
                                 continue
-                            strategies.append(IronCondor(sc, bc, sp, bp))
+                            strategies.append(IronCondor(sc, bc, sp, bp, direction=direction_str))
 
         filtered = self._filter_strategies(strategies, cfg)
         return StrategyList(filtered, self)
