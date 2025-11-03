@@ -13,8 +13,8 @@
 
 # C++ / CMake / Build
 build/
-script_cpp/build/
-script_cpp/third_party/
+cpp/build/
+cpp/third_party/
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
@@ -30,7 +30,8 @@ Makefile
 data/
 .env
 .cursorignore
-script_cpp/config.json
+cpp/config.json
+config.json
 
 # IDE
 .idea/

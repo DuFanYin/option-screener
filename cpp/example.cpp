@@ -59,17 +59,9 @@ int main(int argc, char* argv[]) {
         StrategyFactory factory(options, spot.value());
         
         // Get ranking parameters from config
-        std::string rank_key = "rr";
-        size_t top_n = 10;
-        if (config_json.contains("ranking")) {
-            auto ranking = config_json["ranking"];
-            if (ranking.contains("key")) {
-                rank_key = ranking["key"].get<std::string>();
-            }
-            if (ranking.contains("top_n")) {
-                top_n = ranking["top_n"].get<size_t>();
-            }
-        }
+        auto ranking = config_json["ranking"];
+        std::string rank_key = ranking["key"].get<std::string>();
+        size_t top_n = ranking["top_n"].get<size_t>();
 
         // Generate, rank, and get top strategies
         auto results = factory.strategy(s_filter, c_filter).rank(rank_key).top(top_n);

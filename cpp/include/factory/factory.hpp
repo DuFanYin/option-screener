@@ -81,12 +81,39 @@ private:
     }
 
     std::unique_ptr<Strategy> clone_strategy(const Strategy& s) {
-        // For now, we'll need to implement cloning per strategy type
-        // This is a simplified version
-        if (auto* st = dynamic_cast<const Straddle*>(&s)) {
-            // Reconstruct from legs - simplified
+        // Clone strategy based on type
+        if (auto* st = dynamic_cast<const SingleLeg*>(&s)) {
             auto legs = s.legs();
-            return std::make_unique<Straddle>(legs[0], legs[1], s.direction);
+            std::string action = s.leg_sign(legs[0]);
+            return std::make_unique<SingleLeg>(legs[0], action, s.direction);
+        }
+        if (auto* st = dynamic_cast<const IronCondor*>(&s)) {
+            auto legs = s.legs();
+            // IronCondor constructor: sc, bc, sp, bp
+            // legs() returns: sc, bc, sp, bp
+            return std::make_unique<IronCondor>(legs[0], legs[1], legs[2], legs[3], s.direction);
+        }
+        if (auto* st = dynamic_cast<const Straddle*>(&s)) {
+            auto legs = s.legs();
+            // Straddle constructor: call, put
+            // Identify call and put by side
+            Option call, put;
+            for (const auto& leg : legs) {
+                if (leg.is_call()) call = leg;
+                if (leg.is_put()) put = leg;
+            }
+            return std::make_unique<Straddle>(call, put, s.direction);
+        }
+        if (auto* st = dynamic_cast<const Strangle*>(&s)) {
+            auto legs = s.legs();
+            // Strangle constructor: call, put
+            // Identify call and put by side
+            Option call, put;
+            for (const auto& leg : legs) {
+                if (leg.is_call()) call = leg;
+                if (leg.is_put()) put = leg;
+            }
+            return std::make_unique<Strangle>(call, put, s.direction);
         }
         return nullptr;
     }
@@ -96,7 +123,10 @@ class StrategyFactory {
 public:
     StrategyFactory(const std::vector<Option>& options, double spot)
         : options_(options), spot_(spot) {
+        generators_["single_calls"] = std::make_unique<SingleCallsGenerator>(options, spot);
+        generators_["iron_condors"] = std::make_unique<IronCondorsGenerator>(options, spot);
         generators_["straddles"] = std::make_unique<StraddlesGenerator>(options, spot);
+        generators_["strangles"] = std::make_unique<StranglesGenerator>(options, spot);
     }
 
     StrategyList strategy(const StrategyFilter& s_filter, const ConfigFilter& c_filter) {
@@ -106,8 +136,32 @@ public:
     StrategyList generate(const StrategyFilter& s_filter, const ConfigFilter& c_filter) {
         std::vector<std::unique_ptr<Strategy>> all_strategies;
 
+        if (s_filter.single_calls) {
+            auto strategies = generators_["single_calls"]->generate(c_filter);
+            auto filtered = filter_strategies(std::move(strategies), c_filter);
+            all_strategies.insert(all_strategies.end(),
+                std::make_move_iterator(filtered.begin()),
+                std::make_move_iterator(filtered.end()));
+        }
+
+        if (s_filter.iron_condors) {
+            auto strategies = generators_["iron_condors"]->generate(c_filter);
+            auto filtered = filter_strategies(std::move(strategies), c_filter);
+            all_strategies.insert(all_strategies.end(),
+                std::make_move_iterator(filtered.begin()),
+                std::make_move_iterator(filtered.end()));
+        }
+
         if (s_filter.straddles) {
             auto strategies = generators_["straddles"]->generate(c_filter);
+            auto filtered = filter_strategies(std::move(strategies), c_filter);
+            all_strategies.insert(all_strategies.end(),
+                std::make_move_iterator(filtered.begin()),
+                std::make_move_iterator(filtered.end()));
+        }
+
+        if (s_filter.strangles) {
+            auto strategies = generators_["strangles"]->generate(c_filter);
             auto filtered = filter_strategies(std::move(strategies), c_filter);
             all_strategies.insert(all_strategies.end(),
                 std::make_move_iterator(filtered.begin()),
