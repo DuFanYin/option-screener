@@ -36,7 +36,7 @@ if [ ! -f "${CPP_EXEC}" ]; then
 fi
 
 # Time Python execution - time writes to stderr, script output to stdout
-(/usr/bin/time -p python3 "${SCRIPT_DIR}/run_script.py" > /tmp/python_output.txt) 2> /tmp/python_time.txt
+(/usr/bin/time -p python3 "${SCRIPT_DIR}/run_python.py" > /tmp/python_output.txt) 2> /tmp/python_time.txt
 PYTHON_TIME=$(grep -E "^real " /tmp/python_time.txt | awk '{print $2}' || echo "0")
 PYTHON_COUNT=$(grep -oE 'Found [0-9]+' /tmp/python_output.txt | awk '{print $2}' | head -1 || echo "0")
 
