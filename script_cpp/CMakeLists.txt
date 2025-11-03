@@ -40,6 +40,7 @@ include_directories(${JSON_HEADER_DIR})
 set(SOURCES
     src/object.cpp
     src/loader.cpp
+    src/config.cpp
     src/factory/factory.cpp
     src/factory/option_filter.cpp
     src/strategy/strategy_class.cpp

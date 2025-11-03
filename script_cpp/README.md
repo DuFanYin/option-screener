@@ -1,6 +1,6 @@
 # Option Screener - C++ Version
 
-C++ implementation of the option screener, matching the structure of `script_minimal`.
+C++ implementation of the option screener
 
 ## Project Structure
 
@@ -42,55 +42,74 @@ script_cpp/
 ### Quick Start (Recommended)
 
 ```bash
-# Build and run automatically
+# Build only
+./build_and_run.sh build
+# or simply
 ./build_and_run.sh
-```
 
-### Manual Build Instructions
-
-```bash
-# Create build directory
-mkdir build
-cd build
-
-# Configure
-cmake ..
-
-# Build
-cmake --build .
-
-# Run example
-./bin/option_screener
+# Run only (must be built first)
+./build_and_run.sh run
 ```
 
 ### Build Options
 
+To build in a specific mode, modify the build script or run CMake manually:
 - **Release mode** (default): `cmake -DCMAKE_BUILD_TYPE=Release ..`
 - **Debug mode**: `cmake -DCMAKE_BUILD_TYPE=Debug ..`
 
 ## Usage
 
-```cpp
-#include "loader.hpp"
-#include "factory/factory.hpp"
+The C++ version uses a JSON configuration file to avoid recompiling when changing parameters.
 
-auto [options, spot] = load_option_snapshot("data/pltr.json");
-StrategyFactory factory(options, spot.value());
+### Configuration File (config.json)
 
-StrategyFilter s_filter;
-s_filter.straddles = true;
+Create a `config.json` file in the `script_cpp` directory with your settings:
 
-ConfigFilter c_filter;
-c_filter.min_oi = 5;
-c_filter.min_price = 0.05;
-c_filter.days_to_expiry_range = std::make_tuple(0, 30);
-c_filter.direction = Direction::SHORT;
-c_filter.credit_range = std::make_tuple(0.0, 2500.0);
-
-auto results = factory.strategy(s_filter, c_filter)
-    .rank("cost")
-    .top(10);
+```json
+{
+  "strategy_filter": {
+    "single_calls": true,
+    "iron_condors": false,
+    "straddles": true,
+    "strangles": false
+  },
+  
+  "config_filter": {
+    "min_volume": null,
+    "min_oi": 5,
+    "min_price": 0.05,
+    "expiry": null,
+    "days_to_expiry_range": [0, 30],
+    "volume_ratio_range": null,
+    "max_bid_ask_spread": null,
+    "direction": "SHORT",
+    "debit_range": null,
+    "credit_range": [0, 2500],
+    "potential_gain_range": null,
+    "potential_loss_range": null,
+    "rr_range": null,
+    "net_delta_range": null,
+    "net_theta_range": null,
+    "net_vega_range": null,
+    "iv_range": null
+  },
+  
+  "ranking": {
+    "key": "cost",
+    "top_n": 10
+  }
+}
 ```
+
+### Running
+
+Always use the build script:
+
+```bash
+./build_and_run.sh run
+```
+
+The script automatically checks for `config.json` and the data file before running.
 
 ## Design Notes
 

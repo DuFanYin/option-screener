@@ -1,64 +1,82 @@
 #include "loader.hpp"
 #include "factory/factory.hpp"
+#include "config.hpp"
 #include <iostream>
-
+#include <fstream>
 #include <filesystem>
-#include <cstdlib>
+#include <vector>
+#include <json.hpp>
 
-int main() {
+using json = nlohmann::json;
+
+int main(int argc, char* argv[]) {
     try {
-        // Get path relative to executable or current directory
-        std::string data_path = "data/pltr.json";
-        std::filesystem::path exe_path = std::filesystem::current_path();
+        // Get config file path (default: config.json)
+        std::string config_path = "config.json";
+        std::string data_path;
         
-        // Try multiple possible paths
-        std::vector<std::filesystem::path> possible_paths = {
-            data_path,
-            exe_path / "data" / "pltr.json",
-            exe_path.parent_path().parent_path() / "data" / "pltr.json",
-            std::filesystem::path("../data/pltr.json"),
-        };
-        
-        std::string final_path;
-        bool found = false;
-        for (const auto& path : possible_paths) {
-            if (std::filesystem::exists(path)) {
-                final_path = path.string();
-                found = true;
-                break;
-            }
+        if (argc > 1) {
+            config_path = argv[1];
         }
-        
-        if (!found) {
-            std::cerr << "Error: Cannot find data/pltr.json in any of these locations:" << std::endl;
-            for (const auto& path : possible_paths) {
-                std::cerr << "  - " << path.string() << std::endl;
-            }
+        if (argc > 2) {
+            data_path = argv[2];
+        }
+
+        // Check if config file exists
+        if (!std::filesystem::exists(config_path)) {
+            std::cerr << "Error: Config file not found: " << config_path << std::endl;
+            std::cerr << "Usage: " << (argc > 0 ? argv[0] : "option_screener") << " [config.json] [data_file]" << std::endl;
             return 1;
         }
+
+        // Check if data file exists
+        if (data_path.empty() || !std::filesystem::exists(data_path)) {
+            std::cerr << "Error: Data file not found: " << (data_path.empty() ? "(not provided)" : data_path) << std::endl;
+            std::cerr << "Usage: " << (argc > 0 ? argv[0] : "option_screener") << " [config.json] [data_file]" << std::endl;
+            return 1;
+        }
+
+        // Load filters from config
+        StrategyFilter s_filter = ConfigLoader::load_strategy_filter_from_json(config_path);
+        ConfigFilter c_filter = ConfigLoader::load_from_json(config_path);
         
-        auto [options, spot] = load_option_snapshot(final_path);
+        // Load config JSON for ranking settings
+        json config_json;
+        {
+            std::ifstream config_file(config_path);
+            config_json = json::parse(config_file);
+        }
+
+        // Load options and spot
+        auto [options, spot] = load_option_snapshot(data_path);
         
         if (!spot.has_value()) {
             std::cerr << "Error: Could not determine spot price" << std::endl;
             return 1;
         }
 
+        // Create factory and generate strategies
         StrategyFactory factory(options, spot.value());
+        
+        // Get ranking parameters from config
+        std::string rank_key = "rr";
+        size_t top_n = 10;
+        if (config_json.contains("ranking")) {
+            auto ranking = config_json["ranking"];
+            if (ranking.contains("key")) {
+                rank_key = ranking["key"].get<std::string>();
+            }
+            if (ranking.contains("top_n")) {
+                top_n = ranking["top_n"].get<size_t>();
+            }
+        }
 
-        StrategyFilter s_filter;
-        s_filter.straddles = true;
-
-        ConfigFilter c_filter;
-        c_filter.min_oi = 5;
-        c_filter.min_price = 0.05;
-        c_filter.days_to_expiry_range = std::make_tuple(0, 30);
-        c_filter.direction = Direction::SHORT;
-        c_filter.credit_range = std::make_tuple(0.0, 2500.0);
-
-        auto results = factory.strategy(s_filter, c_filter).rank("cost").top(10);
+        // Generate, rank, and get top strategies
+        auto results = factory.strategy(s_filter, c_filter).rank(rank_key).top(top_n);
 
         std::cout << "Found " << results.size() << " strategies" << std::endl;
+        std::cout << "Ranked by: " << rank_key << std::endl;
+        std::cout << "----------------------------------------" << std::endl;
         results.print();
 
         return 0;
@@ -67,4 +85,3 @@ int main() {
         return 1;
     }
 }
-

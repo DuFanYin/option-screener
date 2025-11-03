@@ -1,49 +1,45 @@
 #!/bin/bash
 
-# Build and run script for option_screener
-# This script will build the project and run the example
+# Build or run option_screener
+# Usage: ./build_and_run.sh [build|run]
+#   build - Only build (default)
+#   run   - Only run (must be built first)
 
-set -e  # Exit on error
+set -e
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
-
-# Get script directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 BUILD_DIR="${SCRIPT_DIR}/build"
+MODE="${1:-build}"
+DATA_FILE="pltr.json"
 
-echo -e "${GREEN}Building option_screener...${NC}"
-
-# Create build directory if it doesn't exist
-mkdir -p "${BUILD_DIR}"
-cd "${BUILD_DIR}"
-
-# Configure CMake
-echo -e "${YELLOW}Configuring CMake...${NC}"
-cmake .. || {
-    echo -e "${RED}CMake configuration failed!${NC}"
+if [ "${MODE}" = "build" ]; then
+    mkdir -p "${BUILD_DIR}"
+    cd "${BUILD_DIR}"
+    cmake .. && cmake --build .
+elif [ "${MODE}" = "run" ]; then
+    if [ ! -f "${BUILD_DIR}/bin/option_screener" ]; then
+        echo "Error: Executable not found. Run './build_and_run.sh build' first."
+        exit 1
+    fi
+    
+    # Check config.json exists
+    CONFIG_FILE="${SCRIPT_DIR}/config.json"
+    if [ ! -f "${CONFIG_FILE}" ]; then
+        echo "Error: config.json not found: ${CONFIG_FILE}"
+        exit 1
+    fi
+    
+    # Check data file exists (data folder is at same level as script_cpp)
+    DATA_PATH="${SCRIPT_DIR}/../data/${DATA_FILE}"
+    if [ ! -f "${DATA_PATH}" ]; then
+        echo "Error: Data file not found: ${DATA_PATH}"
+        exit 1
+    fi
+    
+    cd "${SCRIPT_DIR}"
+    "${BUILD_DIR}/bin/option_screener" config.json "${DATA_PATH}"
+else
+    echo "Usage: $0 [build|run]"
     exit 1
-}
-
-# Build project
-echo -e "${YELLOW}Building project...${NC}"
-cmake --build . || {
-    echo -e "${RED}Build failed!${NC}"
-    exit 1
-}
-
-echo -e "${GREEN}Build successful!${NC}"
-
-# Run the example
-echo -e "${GREEN}Running example...${NC}"
-echo "----------------------------------------"
-./bin/option_screener || {
-    echo -e "${RED}Execution failed!${NC}"
-    exit 1
-}
-echo "----------------------------------------"
-echo -e "${GREEN}Done!${NC}"
+fi
 
