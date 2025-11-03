@@ -7,13 +7,22 @@ class Direction(Enum):
     LONG = "LONG"
     SHORT = "SHORT"
 
+@dataclass
+class StrategyFilter:
+    """Filter which strategy types to generate"""
+    single_calls: bool = False
+    iron_condors: bool = False
+    straddles: bool = False
+    strangles: bool = False
+
 
 @dataclass
-class StrategyConfig:
+class ConfigFilter:
     # ==================== OPTION-LEVEL FILTERS ====================
     # These filters apply to individual options before strategy construction
     min_volume: Optional[int] = None
     min_oi: Optional[int] = None
+    min_price: Optional[float] = None
 
     expiry: Optional[str] = None
     days_to_expiry_range: Optional[Tuple[int, int]] = None  # (min_days, max_days) inclusive
