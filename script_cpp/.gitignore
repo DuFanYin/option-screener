@@ -1,0 +1,29 @@
+# Build directory
+build/
+
+# Third party dependencies (downloaded automatically)
+third_party/
+
+# Compiled files
+*.o
+*.so
+*.a
+*.exe
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+

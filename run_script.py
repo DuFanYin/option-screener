@@ -1,6 +1,6 @@
 from script.src.loader import load_option_snapshot
 from script.src.factory.factory import StrategyFactory
-from script.src.factory.filter import ConfigFilter, Direction, StrategyFilter
+from script.src.object import ConfigFilter, Direction, StrategyFilter
 
 
 path = "data/pltr.json"
@@ -8,7 +8,7 @@ options, spot = load_option_snapshot(path)
 factory = StrategyFactory(options, spot)
 
 
-filter = StrategyFilter(
+s_filter = StrategyFilter(
     single_calls=True,
     iron_condors=False,
     straddles=True,
@@ -16,7 +16,7 @@ filter = StrategyFilter(
 )
 
 
-cfg = ConfigFilter(
+c_filter = ConfigFilter(
     # Option-level filters
     min_volume=None,
     min_oi=5,
@@ -42,7 +42,7 @@ cfg = ConfigFilter(
 )
 
 
-results_2 = factory.strategy(filter).config(cfg).rank("cost").top(10)
+results_2 = factory.strategy(s_filter, c_filter).rank("cost").top(10)
 
 
 print(len(results_2))

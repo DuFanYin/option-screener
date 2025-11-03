@@ -2,9 +2,8 @@
 from abc import ABC, abstractmethod
 from typing import List
 
-from ..object import Option
-from ..factory.filter import ConfigFilter
-from ..factory.filter import OptionFilter
+from ..object import Option, ConfigFilter
+from ..factory.option_filter import OptionFilter
 from .strategy_class import SingleLeg, IronCondor, Straddle, Strangle
 
 
