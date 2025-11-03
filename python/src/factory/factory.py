@@ -10,27 +10,6 @@ from ..strategy.generator_class import (
     ForwardVolsGenerator,
 )
 
-
-# ranking.py
-class StrategyRanking:
-    @staticmethod
-    def by_rr(strats):
-        return sorted(strats, key=lambda strategy: strategy.rr(), reverse=True)
-
-    @staticmethod
-    def by_profit(strats):
-        return sorted(strats, key=lambda strategy: strategy.max_gain(), reverse=True)
-
-    @staticmethod
-    def by_cost(strats):
-        return sorted(strats, key=lambda strategy: strategy.cost())
-
-
-# ============================================================
-# ✅ STRATEGY FACTORY
-# ============================================================
-
-# ============= Helper Wrapper for returned results =============
 class StrategyList(list):
     def __init__(self, items, factory):
         super().__init__(items)
@@ -46,16 +25,13 @@ class StrategyList(list):
             "gain": lambda s: s.max_gain(),
             "loss": lambda s: s.max_loss(),
             "cost": lambda s: s.cost(),
-            "credit": lambda s: s.credit() if hasattr(s, "credit") and s.direction == "SHORT" else 0,
         }
 
         if key in rankers:
             key_func = rankers[key]
-            # Special handling for loss (ascending) and credit (only for IronCondor)
+            # Special handling for loss (ascending)
             if key == "loss":
                 sorted_list = sorted(self, key=key_func)
-            elif key == "credit" and (not self or not hasattr(self[0], "credit") or self[0].direction != "SHORT"):
-                sorted_list = list(self)
             else:
                 sorted_list = sorted(self, key=key_func, reverse=reverse)
         else:

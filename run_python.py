@@ -68,19 +68,8 @@ def load_config_filter_from_json(path: str) -> ConfigFilter:
 def main():
     # Get config file path (default: config.json)
     config_path = "config.json"
-    
-    # Check if config file exists
-    if not Path(config_path).exists():
-        print(f"Error: Config file not found: {config_path}", file=sys.stderr)
-        sys.exit(1)
-    
-    # Hardcode data file path
     data_path = "data/pltr.json"
-    
-    # Check if data file exists
-    if not Path(data_path).exists():
-        print(f"Error: Data file not found: {data_path}", file=sys.stderr)
-        sys.exit(1)
+
     
     # Load config JSON for ranking settings
     with open(config_path, 'r') as f:

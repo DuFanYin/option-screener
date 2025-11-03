@@ -146,3 +146,47 @@ The following table shows which `ConfigFilter` fields apply to which strategies:
 | `net_theta_range` | ✅ | ✅ | ✅ | ✅ |
 | `net_vega_range` | ✅ | ✅ | ✅ | ✅ |
 | `iv_range` | ✅ | ✅ | ✅ | ✅ |
+
+## Usage
+
+The  uses a JSON configuration file
+
+### Configuration File (config.json)
+
+Create a `config.json` file in the `script_cpp` directory with your settings:
+
+```json
+{
+  "strategy_filter": {
+    "single_calls": true,
+    "iron_condors": false,
+    "straddles": true,
+    "strangles": false
+  },
+  
+  "config_filter": {
+    "min_volume": null,
+    "min_oi": 5,
+    "min_price": 0.05,
+    "expiry": null,
+    "days_to_expiry_range": [0, 30],
+    "volume_ratio_range": null,
+    "max_bid_ask_spread": null,
+    "direction": "SHORT",
+    "debit_range": null,
+    "credit_range": [0, 2500],
+    "potential_gain_range": null,
+    "potential_loss_range": null,
+    "rr_range": null,
+    "net_delta_range": null,
+    "net_theta_range": null,
+    "net_vega_range": null,
+    "iv_range": null
+  },
+  
+  "ranking": {
+    "key": "cost",
+    "top_n": 10
+  }
+}
+```
