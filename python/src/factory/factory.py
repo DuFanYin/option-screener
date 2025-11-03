@@ -6,7 +6,8 @@ from ..strategy.generator_class import (
     SingleCallsGenerator,
     IronCondorsGenerator,
     StraddlesGenerator,
-    StranglesGenerator
+    StranglesGenerator,
+    ForwardVolsGenerator,
 )
 
 
@@ -23,6 +24,7 @@ class StrategyRanking:
     @staticmethod
     def by_cost(strats):
         return sorted(strats, key=lambda strategy: strategy.cost())
+
 
 # ============================================================
 # ✅ STRATEGY FACTORY
@@ -91,6 +93,7 @@ class StrategyFactory:
             'iron_condors': IronCondorsGenerator(options, spot),
             'straddles': StraddlesGenerator(options, spot),
             'strangles': StranglesGenerator(options, spot),
+            'forward_vols': ForwardVolsGenerator(options, spot),
         }
 
     def strategy(self, s_filter: StrategyFilter, c_filter: ConfigFilter) -> StrategyList:
@@ -147,6 +150,7 @@ class StrategyFactory:
                 (strategy.net_vega(),    c_filter.net_vega_range),
                 (strategy.avg_iv(),      c_filter.iv_range),
             ]
+
 
             ok = True
             for val, rng in metrics:

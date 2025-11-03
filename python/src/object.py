@@ -66,6 +66,7 @@ class StrategyFilter:
     iron_condors: bool = False
     straddles: bool = False
     strangles: bool = False
+    forward_vols: bool = False
 
 
 @dataclass

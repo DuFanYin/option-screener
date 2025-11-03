@@ -235,3 +235,39 @@ class Strangle(Strategy):
             f"Δ={self.net_delta():.3f} Θ={self.net_theta():.3f} vega={self.net_vega():.3f}"
         )
 
+
+class ForwardVolPair(Strategy):
+    """Non-trade analytical strategy: forward vol between two maturities for same side/strike."""
+    def __init__(self, short_opt: Option, long_opt: Option, forward_vol: float):
+        # direction not meaningful here; use LONG as neutral
+        self.short_opt = short_opt
+        self.long_opt = long_opt
+        self._forward_vol = forward_vol
+        self.direction = "LONG"
+
+    def legs(self):
+        return [self.short_opt, self.long_opt]
+
+    def _leg_sign(self, leg) -> str:
+        return "BUY"
+
+    def debit(self) -> float:
+        return 0.0
+
+    def credit(self) -> float:
+        return 0.0
+
+    def max_gain(self) -> float:
+        return 0.0
+
+    def max_loss(self) -> float:
+        return 0.0
+
+    def forward_vol(self) -> float:
+        return self._forward_vol
+
+    def pretty(self) -> str:
+        return (
+            f"FwdVol {self.short_opt.side}@{self.short_opt.strike} "
+            f"{self.short_opt.expiry}->{self.long_opt.expiry} fv={self._forward_vol:.4f}"
+        )

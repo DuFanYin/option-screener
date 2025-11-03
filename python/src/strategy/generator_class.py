@@ -4,7 +4,7 @@ from typing import List
 
 from ..object import Option, ConfigFilter
 from ..factory.option_filter import OptionFilter
-from .strategy_class import SingleLeg, IronCondor, Straddle, Strangle
+from .strategy_class import SingleLeg, IronCondor, Straddle, Strangle, ForwardVolPair
 
 
 # ===================== STRATEGY GENERATORS =====================
@@ -113,6 +113,69 @@ class StranglesGenerator(StrategyGenerator):
             for call in calls:
                 for put in puts:
                     strategies.append(Strangle(call, put, direction=direction_str))
+
+        return strategies
+
+
+class ForwardVolsGenerator(StrategyGenerator):
+    """Generator computing forward volatility between two expirations for same side/strike."""
+    def generate(self, cfg: ConfigFilter) -> List:
+        # Start from filtered options
+        opts = OptionFilter(self.options, self.spot).apply_filter(cfg).result()
+
+        # Group by expiry
+        expiry_map: dict[str, List[Option]] = {}
+        for opt in opts:
+            expiry_map.setdefault(opt.expiry, []).append(opt)
+
+        # Build mapping by (side, strike) per expiry
+        by_key_by_expiry: dict[str, dict[tuple, List[Option]]] = {}
+        for expiry, chain in expiry_map.items():
+            by_key: dict[tuple, List[Option]] = {}
+            for o in chain:
+                key = (o.side, o.strike)
+                by_key.setdefault(key, []).append(o)
+            by_key_by_expiry[expiry] = by_key
+
+        # Sort expiries ascending
+        expiries = sorted(expiry_map.keys())
+
+        strategies: List[ForwardVolPair] = []
+        # For each pair of expiries (shorter, longer)
+        for i in range(len(expiries)):
+            for j in range(i + 1, len(expiries)):
+                e1, e2 = expiries[i], expiries[j]
+                m1, m2 = by_key_by_expiry[e1], by_key_by_expiry[e2]
+                # For each key present in both expiries
+                for key in set(m1.keys()).intersection(m2.keys()):
+                    # Use first occurrence per key
+                    o1 = sorted(m1[key], key=lambda x: x.strike)[0]
+                    o2 = sorted(m2[key], key=lambda x: x.strike)[0]
+
+                    # Compute T in years using days_to_expiry
+                    T1 = max(o1.days_to_expiry, 0) / 365.0
+                    T2 = max(o2.days_to_expiry, 0) / 365.0
+                    if T2 <= T1:
+                        continue
+
+                    iv1 = o1.iv or 0.0
+                    iv2 = o2.iv or 0.0
+                    num = iv2 * iv2 * T2 - iv1 * iv1 * T1
+                    den = T2 - T1
+                    if den <= 0 or num <= 0:
+                        continue
+
+                    fv = (num / den) ** 0.5
+
+                    strat = ForwardVolPair(o1, o2, fv)
+
+                    # Strategy-level filter for forward_vol
+                    if cfg.forward_vol_range is not None:
+                        lo, hi = cfg.forward_vol_range
+                        if not (lo <= fv <= hi):
+                            continue
+
+                    strategies.append(strat)
 
         return strategies
 

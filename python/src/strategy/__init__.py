@@ -1,10 +1,11 @@
 # strategy package
-from .strategy_class import SingleLeg, IronCondor, Straddle, Strangle
+from .strategy_class import SingleLeg, IronCondor, Straddle, Strangle, ForwardVolPair
 from .generator_class import (
     SingleCallsGenerator,
     IronCondorsGenerator,
     StraddlesGenerator,
-    StranglesGenerator
+    StranglesGenerator,
+    ForwardVolsGenerator
 )
 
 __all__ = [
@@ -12,9 +13,11 @@ __all__ = [
     "IronCondor",
     "Straddle",
     "Strangle",
+    "ForwardVolPair",
     "SingleCallsGenerator",
     "IronCondorsGenerator",
     "StraddlesGenerator",
     "StranglesGenerator",
+    "ForwardVolsGenerator",
 ]
 
