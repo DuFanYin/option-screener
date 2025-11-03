@@ -250,7 +250,15 @@ private:
 
     static bool check_range(double value, const std::optional<std::tuple<double, double>>& range) {
         if (!range.has_value()) return true;
+        
+        // Handle NaN - NaN cannot be in any range
+        if (std::isnan(value)) return false;
+        
         auto [min_val, max_val] = range.value();
+        // Inclusive range check: min_val <= value <= max_val
+        // Infinity values are handled correctly by normal comparison:
+        // - inf <= finite_max is false, so inf outside finite range is correctly excluded
+        // - inf <= inf is true, so inf can be allowed if range includes infinity
         return value >= min_val && value <= max_val;
     }
 

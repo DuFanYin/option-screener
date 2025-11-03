@@ -52,6 +52,9 @@ def load_option_snapshot(path: str) -> Tuple[float, List[Option]]:
     # ===== Convert all chain rows into Option objects =====
     options: List[Option] = []
     today = date.today()
+    # Use datetime for consistency with C++ (which uses system_clock with time)
+    now_datetime = datetime.now()
+    now_timestamp = now_datetime.timestamp()
 
     for expiry_key, rows in chains.items():
         for opt_data in rows:
@@ -61,7 +64,11 @@ def load_option_snapshot(path: str) -> Tuple[float, List[Option]]:
             # Always use expiration_date from option data
             expiry_str = opt_data["expiration_date"]
             expiry_date = datetime.strptime(expiry_str, "%Y-%m-%d").date()
-            days_to_expiry = (expiry_date - today).days
+            # Calculate days using floor like C++ for consistency
+            expiry_datetime = datetime.combine(expiry_date, datetime.min.time())
+            expiry_timestamp = expiry_datetime.timestamp()
+            diff_seconds = expiry_timestamp - now_timestamp
+            days_to_expiry = int(diff_seconds // 86400)
 
             # Extract bid and ask
             bid_val = opt_data.get("bid")
@@ -75,19 +82,19 @@ def load_option_snapshot(path: str) -> Tuple[float, List[Option]]:
                 strike=float(opt_data["strike"]),
                 side=side,
 
-                mid=mid_price(opt_data),
-                iv=extract_iv(greeks),
+                mid=mid_price(opt_data) or 0.0,
+                iv=extract_iv(greeks) or 0.0,
                 volume=opt_data.get("volume") or 0,
                 oi=opt_data.get("open_interest") or 0,
                 
                 bid=bid,
                 ask=ask,
 
-                delta=greeks.get("delta"),
-                gamma=greeks.get("gamma"),
-                theta=greeks.get("theta"),
-                vega=greeks.get("vega"),
-                rho=greeks.get("rho"),
+                delta=greeks.get("delta") or 0.0,
+                gamma=greeks.get("gamma") or 0.0,
+                theta=greeks.get("theta") or 0.0,
+                vega=greeks.get("vega") or 0.0,
+                rho=greeks.get("rho") or 0.0,
                 days_to_expiry=days_to_expiry,
             )
 

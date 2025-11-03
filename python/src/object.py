@@ -31,7 +31,7 @@ class Option:
     def is_otm(self, spot):
         return (self.is_call() and self.strike > spot) or (self.is_put() and self.strike < spot)
 
-    def price(self): return self.mid or 0.0
+    def price(self): return self.mid if self.mid and self.mid > 0.0 else 0.0
     def mid_price(self): return self.price()
     def liquidity(self): return (self.volume or 0) + (self.oi or 0)
     
