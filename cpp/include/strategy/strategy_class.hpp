@@ -70,9 +70,9 @@ public:
         return sum / ivs.size();
     }
 
-protected:
     virtual std::string leg_sign(const Option& leg) const = 0;
 
+protected:
     std::vector<std::pair<Option, int>> signed_legs() const {
         std::vector<std::pair<Option, int>> result;
         for (const Option& leg : legs()) {

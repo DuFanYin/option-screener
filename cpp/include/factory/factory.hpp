@@ -10,6 +10,9 @@
 #include <algorithm>
 #include <map>
 #include <iostream>
+#include <iomanip>
+#include <cmath>
+#include <cstdio>
 
 class StrategyList {
 public:
@@ -64,8 +67,77 @@ public:
     size_t size() const { return strategies_.size(); }
 
     void print() const {
+        if (strategies_.empty()) {
+            std::cout << "No strategies found." << std::endl;
+            return;
+        }
+
+        // Print header
+        std::printf("%-5s %-50s %12s %12s %12s %12s %18s %18s %18s %18s\n",
+                    "", "strategy", "cost", "max_gain", "max_loss", "rr",
+                    "delta", "theta", "vega", "iv");
+        
+        // Print separator
+        std::cout << std::string(165, '-') << std::endl;
+
+        // Print each strategy
         for (size_t i = 0; i < strategies_.size(); ++i) {
-            std::cout << "[" << i << "] " << strategies_[i]->pretty() << std::endl;
+            const auto& s = strategies_[i];
+            
+            auto avg_iv = s->avg_iv();
+            double theta_val = s->net_theta();
+            // Use scientific notation for theta when very small or very large
+            bool use_scientific_theta = (std::abs(theta_val) < 0.001 && theta_val != 0.0) || 
+                                       std::abs(theta_val) >= 1000.0;
+
+            // Print row number and strategy name
+            std::printf("%-5zu %-50s ", i, s->pretty().c_str());
+            
+            // Print cost
+            std::printf("%12.1f ", s->cost());
+            
+            // Print max_gain (infinity or number)
+            if (std::isinf(s->max_gain())) {
+                std::printf("%12s ", "inf");
+            } else {
+                std::printf("%12.1f ", s->max_gain());
+            }
+            
+            // Print max_loss (infinity or number)
+            if (std::isinf(s->max_loss())) {
+                std::printf("%12s ", "inf");
+            } else {
+                std::printf("%12.1f ", s->max_loss());
+            }
+            
+            // Print rr (infinity or number)
+            if (std::isinf(s->rr())) {
+                std::printf("%12s ", "inf");
+            } else {
+                std::printf("%12.2f ", s->rr());
+            }
+            
+            // Print delta (always fixed point)
+            std::printf("%18.6f ", s->net_delta());
+            
+            // Print theta (scientific for small/large values)
+            if (use_scientific_theta) {
+                std::printf("%18.6e ", theta_val);
+            } else {
+                std::printf("%18.6f ", theta_val);
+            }
+            
+            // Print vega (always fixed point)
+            std::printf("%18.6f ", s->net_vega());
+            
+            // Print iv (nan or number)
+            if (avg_iv.has_value()) {
+                std::printf("%18.6f", avg_iv.value());
+            } else {
+                std::printf("%18s", "nan");
+            }
+            
+            std::cout << std::endl;
         }
     }
 
